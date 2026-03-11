@@ -1,0 +1,85 @@
+﻿@{
+    ViewData["Title"] = "Image Content Safety";
+}
+
+<div class="container mt-5" style="max-width: 500px;">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h2 class="card-title mb-4 text-center">Upload Image for Content Safety Validation</h2>
+            <form id="imageUploadForm" enctype="multipart/form-data" autocomplete="off">
+                <div class="mb-3">
+                    <input type="file" class="form-control" id="imageInput" accept="image/*" />
+                </div>
+                <div class="mb-3 text-center">
+                    <img id="preview" class="img-fluid rounded border" style="display:none;max-height:200px;" alt="Image preview" />
+                </div>
+                <div class="d-grid">
+                    <button type="button" class="btn btn-primary" onclick="uploadImage()">Upload</button>
+                </div>
+            </form>
+            <div id="result" class="mt-3"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('imageInput').addEventListener('change', function() {
+        const input = this;
+        const preview = document.getElementById('preview');
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                preview.style.display = "block";
+            };
+            reader.readAsDataURL(input.files[0]);
+        } else {
+            preview.style.display = "none";
+            preview.src = "";
+        }
+    });
+
+    function uploadImage() {
+        const input = document.getElementById('imageInput');
+        const preview = document.getElementById('preview');
+        const resultDiv = document.getElementById('result');
+        if (!input.files.length) {
+            resultDiv.className = "alert alert-warning mt-3";
+            resultDiv.innerText = "Please select an image.";
+            preview.style.display = "none";
+            return;
+        }
+
+        const file = input.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            let base64 = e.target.result;
+            if (base64.indexOf(',') !== -1) {
+                base64 = base64.split(',')[1];
+            }
+
+            fetch('/Home/ValidateImageContent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: 'images=' + encodeURIComponent(base64)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.className = "alert alert-success mt-3";
+                    resultDiv.innerText = "Image passed content safety check.";
+                } else {
+                    resultDiv.className = "alert alert-danger mt-3";
+                    resultDiv.innerText = data.message || "Image failed content safety check.";
+                }
+            })
+            .catch(error => {
+                resultDiv.className = "alert alert-danger mt-3";
+                resultDiv.innerText = "Error: " + error;
+            });
+        };
+        reader.readAsDataURL(file);
+    }
+</script>
